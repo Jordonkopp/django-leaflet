@@ -23,10 +23,19 @@
     {% include "leaflet/_leaflet_draw_i18n.js" %}
     L.Control.ResetView.TITLE = "{% trans "Reset view" %}";
     L.Control.ResetView.ICON = "url({% static "leaflet/images/reset-view.png" %})";
+    
+    {{ id_map_callback }}_geom = {{ serialized | safe}}
+
 {% endblock vars %}
 
 {% block map %}
 <div id="{{ id_css }}-div-map">
     {{ block.super }}
 </div>
+<input type="text" 
+            class="form-control" 
+            id="{{ id_map_callback }}_lat_lng_search"
+            placeholder="Zoom Map to LatLng">
+<button type="button" id="{{ id_map_callback }}_zoom_button">Zoom</button>
+
 {% endblock map %}

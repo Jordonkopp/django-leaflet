@@ -115,6 +115,7 @@ def leaflet_map(name, callback=None, fitextent=True, creatediv=True,
         'djoptions': json.dumps(djoptions, cls=JSONLazyTranslationEncoder),
         # settings
         'NO_GLOBALS': instance_app_settings.get('NO_GLOBALS'),
+        'MB_URL': instance_app_settings.get('MB_URL'),
     }
 
 

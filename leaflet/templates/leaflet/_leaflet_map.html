@@ -1,25 +1,381 @@
 {% load i18n %}
 {% load static from staticfiles %}
 {% if creatediv %}<div id="{{ name }}" class="leaflet-container-default"></div>{% endif %}
+<link rel="stylesheet" href="{% static "leaflet/upload.control.css" %}" />
+<script type="text/javascript" src="https://unpkg.com/@mapbox/geojsonhint@latest/geojsonhint.js"></script>
+<!-- <script type="text/javascript" src="{% static "js/turf.min.js" %}"></script> -->
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+<script type="text/javascript" src="{% static "js/polyk.js" %}"></script>
+
 <script type="text/javascript">
 (function () {
+    function {{ callback }}_loadmap() {
 
-    function loadmap() {
-        var djoptions = {% autoescape off %}{{ djoptions }}{% endautoescape %},
-            options = {djoptions: djoptions, initfunc: loadmap,
-                       globals: {{ NO_GLOBALS|yesno:"false,true"}}, callback: {{ callback|default:"null" }}},
-            map = L.Map.djangoMap('{{ name }}', options);
+        var name = "{{ callback }}";
+        var exp = /marker/
+
+        if (exp.test(name)){
+            var poly_map = false;
+        }
+        else{
+            var poly_map = true;
+        }
+
+        var {{ callback }} = new L.Map('{{ name }}',{ attributionControl:false, worldCopyJump:false});
+
+        var mbUrl = "{{ MB_URL }}"
+        // Dark
+        var osmUrl='http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        var osmAttrib='Map tiles by CartoDB, under CC BY 3.0. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under ODbL.';
+
+        var osm = new L.TileLayer(mbUrl, {minZoom: 3, maxZoom: 20});       
+
+        {{ callback }}.setView(new L.LatLng(0,0),3);
+
+        {{ callback }}.addLayer(osm);
+
+        var {{ callback }}_drawnLayer = new L.FeatureGroup();
+        {{ callback }}.addLayer({{ callback }}_drawnLayer);
+        
+        // Initialise the draw control and pass it the FeatureGroup of editable layers
+        var {{ callback }}_drawControl_polygon = new L.Control.Draw({
+            position: 'topleft',
+            draw: {
+                rectangle:{
+                    allowIntersection: false,
+                    showArea: true,
+                    drawError: {
+                        color: '#ff0',
+                        timeout: 1000
+                    },
+                    shapeOptions: {
+                        color: '#ff9933'
+                    }
+                },
+                polyline: false,
+                polygon: {
+                    allowIntersection: false,
+                    showArea: true,
+                    drawError: {
+                        color: '#ff0',
+                        timeout: 1000
+                    },
+                    shapeOptions: {
+                        color: '#ff9933'
+                    }
+                },
+                circle: false,
+            
+                marker: false
+            },
+            edit: {
+                featureGroup: {{ callback }}_drawnLayer
+            }
+        });
+
+        var {{ callback }}_drawControl_point = new L.Control.Draw({
+            position: 'topleft',
+            draw: {
+                rectangle:false,
+                polyline: false,
+                polygon: false,
+                circle: false,
+                marker: true
+            },
+            edit: {
+                featureGroup: {{ callback }}_drawnLayer
+            }
+        });
+
+        if(poly_map){
+            {{ callback }}.addControl({{ callback }}_drawControl_polygon);
+        }
+        else{
+            {{ callback }}.addControl({{ callback }}_drawControl_point);
+        }
+        
+
+
+        {{ callback }}.on('draw:created', function(e) {
+            var {{ callback }}_type = e.layerType,
+                {{ callback }}_layer = e.layer;
+            if ({{ callback }}_type === 'polygon' || {{ callback }}_type === 'rectangle') {
+                {{ callback }}_drawnLayer.removeLayer({{ callback }}_polygonId);
+                var {{ callback }}_slicedArray = [];
+                {{ callback }}_layer._latlngs.forEach(function (cord, i){
+                    {{ callback }}_slicedArray.push(cord['lng']);
+                    {{ callback }}_slicedArray.push(cord['lat']);
+                });
+                var {{ callback }}_sliced = [];
+                var {{ callback }}_sliced2 = [];
+                //PolyK Slice (Line) for 180, 90, 180, -90
+                {{ callback }}_sliced = PolyK.Slice({{ callback }}_slicedArray, 180, 90, 180, -90);
+                //PolyK Slice (Line) -180, 90, -180, -90
+                {{ callback }}_sliced2 = PolyK.Slice({{ callback }}_slicedArray, -180, 90, -180, -90);
+
+                if ({{ callback }}_sliced.length > 1){
+                    var {{ callback }}_polygonArray = [];
+                    for(var i=0; i<{{ callback }}_sliced.length; i++){
+                        var {{ callback }}_tempArray = [];
+                        for (var c=0; c<{{ callback }}_sliced[i].length; c+=2){
+                            {{ callback }}_tempArray.push([{{ callback }}_sliced[i][c+1], {{ callback }}_sliced[i][c]]);
+                        } 
+                        {{ callback }}_polygonArray.push(tempArray);
+                    }
+
+
+                    var {{ callback }}_multi = L.multiPolygon([], {});
+                    {{ callback }}_multi.setLatLngs({{ callback }}_polygonArray);
+                    {{ callback }}_drawnLayer.addLayer({{ callback }}_multi);
+                    {{ callback }}_polygonId = {{ callback }}_multi._leaflet_id;
+                }
+                else if ({{ callback }}_sliced2.length > 1){
+                    var {{ callback }}_polygonArray = [];
+                    for(var i=0; i<{{ callback }}_sliced2.length; i++){
+                        var {{ callback }}_tempArray = [];
+                        for (var c=0; c<{{ callback }}_sliced2[i].length; c+=2){
+                            {{ callback }}_tempArray.push([{{ callback }}_sliced2[i][c+1], {{ callback }}_sliced2[i][c]]);
+                        }
+                        {{ callback }}_polygonArray.push({{ callback }}_tempArray);
+                    }
+
+
+                    var {{ callback }}_multi = L.multiPolygon([], {});
+                    {{ callback }}_multi.setLatLngs({{ callback }}_polygonArray);
+                    {{ callback }}_drawnLayer.addLayer({{ callback }}_multi);
+                    {{ callback }}_polygonId = {{ callback }}_multi._leaflet_id;
+                }
+                else{
+                    {{ callback }}_drawnLayer.addLayer({{ callback }}_layer);
+                    {{ callback }}_polygonId = {{ callback }}_layer._leaflet_id;
+                }
+                {{ callback }}.fitBounds({{ callback }}_drawnLayer.getBounds());
+            var {{ callback }}_id = new String('{{ name }}').replace("-map", "");
+            document.getElementById({{ callback }}_id).innerHTML = JSON.stringify({{ callback }}_drawnLayer.getLayer({{ callback }}_polygonId).toGeoJSON()['geometry']);
+            } else if ({{ callback }}_type === 'marker') {
+                console.log({{ callback }}_markerId);
+                {{ callback }}_drawnLayer.removeLayer({{ callback }}_markerId);
+                {{ callback }}_drawnLayer.addLayer({{ callback }}_layer);
+                {{ callback }}_markerId = {{ callback }}_layer._leaflet_id;
+                
+                {{ callback }}.fitBounds({{ callback }}_drawnLayer.getBounds());
+                var {{ callback }}_id = new String('{{ name }}').replace("-map", "");
+                document.getElementById({{ callback }}_id).innerHTML = JSON.stringify({{ callback }}_drawnLayer.getLayer({{ callback }}_markerId).toGeoJSON()['geometry']);
+            }
+            
+        });
+
+        {{ callback }}.on('draw:deleted', function(e) {   
+            var {{ callback }}_id = new String('{{ name }}').replace("-map", "");
+            document.getElementById({{ callback }}_id).innerHTML = '';
+            {{ callback }}_polygonId = null;
+            {{ callback }}_markerId = null;
+            
+        });
+
+        {{ callback }}.on('draw:edited', function (e) {
+            var {{ callback }}_type = e.layerType;
+            var {{ callback }}_layers = e.layers;
+            {{ callback }}_layers.eachLayer(function (layer) {
+                //do whatever you want, most likely save back to db
+                if ({{ callback }}_type !== 'marker'){
+                var {{ callback }}_id = new String('{{ name }}').replace("-map", "");
+                document.getElementById({{ callback }}_id).innerHTML = JSON.stringify(layer.toGeoJSON()['geometry']);
+                }
+                else if ({{ callback }}_type === 'marker'){
+
+                    var {{ callback }}_id = new String('{{ name }}').replace("-map", "");
+                    document.getElementById({{ callback }}_id).innerHTML= JSON.stringify(layer.toGeoJSON()['geometry']);
+                }
+            });
+            
+        });
+
+        L.Control.{{ callback }}Shapefile = L.Control.extend({
+            onAdd: function({{ callback }}) {
+                var {{ callback }}_thisControl = this;
+
+                var {{ callback }}_controlDiv = L.DomUtil.create('div', 'leaflet-control-command');
+
+                // Create the leaflet control.
+                var {{ callback }}_controlUI = L.DomUtil.create('div', 'leaflet-control-command-interior', {{ callback }}_controlDiv);
+
+                // Create the form inside of the leaflet control.
+                var {{ callback }}_form = L.DomUtil.create('form', 'leaflet-control-command-form', {{ callback }}_controlUI);
+                {{ callback }}_form.action = '';
+                {{ callback }}_form.method = 'post';
+                {{ callback }}_form.enctype='multipart/form-data';
+
+                // Create the input file element.
+                var {{ callback }}_input = L.DomUtil.create('input', 'leaflet-control-command-form-input', {{ callback }}_form);
+                {{ callback }}_input.id = '{{ callback }}_file';
+                {{ callback }}_input.type = 'file';
+                {{ callback }}_input.name = 'uploadFile';
+                {{ callback }}_input.style.display = 'none';
+                {{ callback }}_input.accept = '.geojson';
+
+                L.DomEvent
+                    .addListener({{ callback }}_form, 'click', function () {
+                        document.getElementById("{{ callback }}_file").click();
+                    })
+                    .addListener({{ callback }}_input, 'change', function(){
+                        //Size in Megabytes
+                        size = this.files[0].size/1024/1024;
+                        var valid = {{ callback }}_thisControl.validateFileSize(size);
+                        if(valid){
+                            {{ callback }}_thisControl.fileToArrayBuffer(this.files[0], {{ callback }});
+                            {{ callback }}_form.reset();
+                        }else{
+                            {{ callback }}_form.reset();
+                        }
+                    });
+
+                {{ callback }}_controlUI.title = 'Upload a GeoJson';
+
+                return {{ callback }}_controlDiv;
+            },
+            //Limit file size to prevent large posts
+            validateFileSize: function(size){
+                var limit = 1.5;
+                if(size > limit){
+                    alert("File too large.");
+                    return false;
+                } else{
+                    return true;
+                }
+            },
+            // When the user uploads a file, convert the file to an array buffer.
+            fileToArrayBuffer: function(file, {{ callback }}) {
+                var thisControl = this;
+
+                var reader = new FileReader();
+
+                reader.onloadend = function (e) {
+                    var json = JSON.parse(e.target.result);
+                    var errors = geojsonhint.hint(json);
+                    if (errors){
+                        var message = "";
+                        for (e in errors){
+                            if (errors[e]["message"] === "Polygons and MultiPolygons should follow the right-hand rule" || errors[e]["message"] === "old-style crs member is not recommended, this object is equivalent to the default and should be removed"){
+                                message += ""
+                            }
+                            else{
+                                message += errors[e]["message"]
+                                message += "\n"    
+                            }       
+                        }
+                        if (message == "" && isNotMultiPolygon(json)){
+                            thisControl.loadArrayBuffer(json, {{ callback }});
+                        }
+                        else if (message != ""){
+                            alert(message);
+                        }
+                    }else{
+                        if(isNotMultiPolygon(json)){
+                            // Pass the array buffer to the shapfile-js function
+                            thisControl.loadArrayBuffer(json, {{ callback }});
+                        }
+                    }
+
+                };
+
+                reader.readAsText(file);
+
+            },
+
+            // Convert the array buffer to geojson and add it to the map as a layer
+            loadArrayBuffer: function(geojson, {{ callback }}) {
+                
+                {{ callback }}_drawnLayer.removeLayer({{ callback }}_polygonId);
+                {{ callback }}_drawnLayer.removeLayer({{ callback }}_markerId);
+                {{ callback }}_polygonId = null;
+                {{ callback }}_markerId = null;
+
+                //Create Polygon from file to simplify using turf.js
+                var options = {coordinates: 2};
+                var poly = turf.polygon(geojson["features"][0]["geometry"]["coordinates"]);
+                var {{ callback }}_feature = turf.truncate(poly, options);
+
+                //Create layer to add to map
+                var {{ callback }}_layer = L.geoJson({{ callback }}_feature).getLayers()[0];
+                {{ callback }}_drawnLayer.addLayer({{ callback }}_layer);
+                {{ callback }}_polygonId = {{ callback }}_layer._leaflet_id;
+                var {{ callback }}_id = new String('{{ name }}').replace("-map", "");
+
+                // Add to innerHTML to be saved back to DB
+                document.getElementById({{ callback }}_id).innerHTML = JSON.stringify({{ callback }}_drawnLayer.getLayer({{ callback }}_polygonId).toGeoJSON()['geometry']);
+
+                // Fit map view to new polygon
+                {{ callback }}.fitBounds({{ callback }}_drawnLayer.getBounds());
+            }
+        });
+
+        L.control.shapefile = function(opts) {
+            return new L.Control.{{ callback }}Shapefile(opts);
+        };
+
+        function isNotMultiPolygon(geojson){
+            if (geojson["features"][0]["geometry"]["type"] == "MultiPolygon"){
+                alert("Geojson must not be a MultiPolygon");
+                return false;
+            }
+            else{
+                return true;
+            }
+        };
+
+        // Initialize geometries
+        if ({{ callback }}_geom["type"]){
+            var {{ callback }}_initial_layer = L.geoJson({{ callback }}_geom).getLayers()[0];
+            {{ callback }}_drawnLayer.addLayer({{ callback }}_initial_layer);
+            {{ callback }}.fitBounds({{ callback }}_drawnLayer.getBounds());
+            if ({{ callback }}_geom["type"] === "polygon"){
+
+                {{ callback }}_polygonId = {{ callback }}_initial_layer._leaflet_id;
+                var {{ callback }}_markerId = null;                
+            }
+            else{
+                {{ callback }}_markerId = {{ callback }}_initial_layer._leaflet_id;
+                var {{ callback }}_polygonId = null;
+            }
+        }
+        else{
+            var {{ callback }}_polygonId = null;
+            var {{ callback }}_markerId = null;
+        }
+
+        if (poly_map) {
+            L.control.shapefile({ position: 'topleft' }).addTo({{ callback }});
+        }
+
+        function {{ callback }}_zoomToLatLng() {
+            var {{ callback }}_search = document.getElementById('{{ callback }}_lat_lng_search').value.split(',');
+            if ({{ callback }}_search.length == 2) {
+              var lat = parseFloat({{ callback }}_search[0]);
+              var lng = parseFloat({{ callback }}_search[1]);
+              var zoom = 20;
+              // var circle = new L.circle([lat,lng],1);
+              {{ callback }}.setView([lat, lng], zoom);
+            }
+        }
+        var {{ callback }}_search = document.getElementById('{{ callback }}_zoom_button')
+        {{ callback }}_search.onclick = function(){
+            {{ callback }}_zoomToLatLng()
+        }
+        
         {% if not NO_GLOBALS %}
-        window['leafletmap' + '{{ name }}'] = map;
+        window['leafletmap' + '{{ name }}'] = {{ callback }};
         {% endif %}
     }
-    var loadevents = {% autoescape off %}{{ loadevents }}{% endautoescape %};
-    if (loadevents.length === 0) loadmap();
-    else if (window.addEventListener) for (var i=0; i<loadevents.length; i++) window.addEventListener(loadevents[i], loadmap, false);
-    else if (window.jQuery) jQuery(window).on(loadevents.join(' '), loadmap);
+    var {{ callback }}_loadevents = {% autoescape off %}{{ loadevents }}{% endautoescape %};
+    if ({{ callback }}_loadevents.length === 0) {{ callback }}_loadmap();
+    else if (window.addEventListener) for (var i=0; i<{{ callback }}_loadevents.length; i++) window.addEventListener({{ callback }}_loadevents[i], {{ callback }}_loadmap, false);
+    else if (window.jQuery) jQuery(window).on({{ callback }}_loadevents.join(' '), {{ callback }}_loadmap);
     {% if not NO_GLOBALS %}
     // Put initialization function in global scope (like django-leaflet < 0.7)
-    window['loadmap' + '{{ name }}'] = loadmap;
+    window['loadmap' + '{{ name }}'] = {{ callback }}_loadmap;
     {% endif %}
 })();
+
 </script>
+<!-- <script type="text/javascript" src="{% static "leaflet/upload.control.js" %}" ></script> -->
