@@ -71,17 +71,15 @@ L.Control.Shapefile = L.Control.extend({
                         message += "\n"    
                     }       
                 }
-                if (message == "" && isNotMultiPolygon(json)){
+                if (message == ""){
                     thisControl.loadArrayBuffer(json, map, drawnLayer, mapId, polygonId);
                 }
                 else if (message != ""){
                     alert(message);
                 }
             }else{
-                if(isNotMultiPolygon(json)){
-                    // Pass the array buffer to the shapfile-js function
-                    thisControl.loadArrayBuffer(json, map, drawnLayer, mapId, polygonId);
-                }
+                // Pass the array buffer to the shapfile-js function
+                thisControl.loadArrayBuffer(json, map, drawnLayer, mapId, polygonId);
             }
 
         };
